@@ -46,8 +46,18 @@
   ignore_errors: true
   register: vm_status
 
+- name: Destroy VM
+  when:
+    - vm_status.rc == 0
+    - input.vm_state_desired == 'absent'
+  ansible.builtin.command:
+    cmd: >
+      qm destroy {{ input.vm_id }}
+
 - name: Create VM
-  when: vm_status.rc != 0
+  when:
+    - vm_status.rc != 0
+    - vm_state_desired == 'present'
   block:
     - name: Create VM
       ansible.builtin.command:
