@@ -1,10 +1,21 @@
+- name: Destroy VM image
+  when:
+    - input.image_state_desired == 'absent'
+  ansible.builtin.file:
+    path: '{{ base_path }}/{{ input.image_name }}'
+    state: absent
+
 - name: Download VM image
+  when:
+    - input.image_state_desired == 'present'
   ansible.builtin.get_url:
     url: '{{ input.image_url }}'
     dest: '{{ base_path }}/{{ input.image_name }}'
     mode: '0600'
 
 - name: Check if image is already customized
+  when:
+    - input.image_state_desired == 'present'
   ansible.builtin.command:
     cmd: 'virt-cat -a {{ base_path }}/{{ input.image_name }} /etc/sudoers.d/ansible'
   changed_when: false
@@ -12,7 +23,9 @@
   register: image_customized
 
 - name: Customize the image
-  when: image_customized.rc != 0
+  when:
+    - input.image_state_desired == 'present'
+    - image_customized.rc != 0
   block:
     - name: Customize the image
       ansible.builtin.command:
@@ -46,8 +59,18 @@
   ignore_errors: true
   register: vm_status
 
+- name: Destroy VM
+  when:
+    - input.vm_state_desired == 'absent'
+    - vm_status.rc == 0
+  ansible.builtin.command:
+    cmd: >
+      qm destroy {{ input.vm_id }}
+
 - name: Create VM
-  when: vm_status.rc != 0
+  when:
+    - input.vm_state_desired == 'present'
+    - vm_status.rc != 0
   block:
     - name: Create VM
       ansible.builtin.command:
